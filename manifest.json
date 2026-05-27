@@ -1,0 +1,19 @@
+{
+  "name": "Fiszki",
+  "short_name": "Fiszki",
+  "description": "Aplikacja do nauki fiszek z powtórkami i skanowaniem zdjęć",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#0f0f0f",
+  "theme_color": "#0f0f0f",
+  "orientation": "portrait",
+  "lang": "pl",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

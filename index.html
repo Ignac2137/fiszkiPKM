@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#0f0f0f">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Fiszki">
+<title>Fiszki</title>
+<link rel="manifest" href="manifest.json">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0f0f0f;
+  --surface: #1a1a1a;
+  --surface2: #222222;
+  --border: rgba(255,255,255,0.08);
+  --border2: rgba(255,255,255,0.14);
+  --text: #f0ede8;
+  --text2: #8a8580;
+  --text3: #555250;
+  --accent: #c8f060;
+  --accent-dark: #9ab840;
+  --red: #ff6b6b;
+  --amber: #ffb347;
+  --green: #6bcf8f;
+  --blue: #6ba8ff;
+  --radius: 16px;
+  --radius-sm: 10px;
+  --tab-h: 68px;
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+html, body { height: 100%; overflow: hidden; background: var(--bg); }
+body { font-family: 'DM Sans', sans-serif; color: var(--text); overscroll-behavior: none; }
+
+/* LAYOUT */
+#app { height: 100vh; display: flex; flex-direction: column; }
+.views { flex: 1; overflow: hidden; position: relative; }
+.view { position: absolute; inset: 0; overflow-y: auto; overflow-x: hidden; padding: 0 0 calc(var(--tab-h) + var(--safe-bottom) + 16px); display: none; -webkit-overflow-scrolling: touch; }
+.view.active { display: block; }
+.view-header { padding: 52px 20px 20px; }
+.view-title { font-family: 'DM Serif Display', serif; font-size: 32px; color: var(--text); }
+.view-sub { font-size: 14px; color: var(--text2); margin-top: 4px; }
+
+/* BOTTOM NAV */
+.bottom-nav { height: calc(var(--tab-h) + var(--safe-bottom)); padding-bottom: var(--safe-bottom); background: rgba(15,15,15,0.92); backdrop-filter: blur(20px); border-top: 0.5px solid var(--border); display: flex; position: relative; z-index: 100; }
+.nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; cursor: pointer; transition: all .2s; padding: 8px 0; border: none; background: none; color: var(--text3); font-family: 'DM Sans', sans-serif; font-size: 11px; }
+.nav-item.active { color: var(--accent); }
+.nav-icon { font-size: 22px; line-height: 1; transition: transform .2s; }
+.nav-item.active .nav-icon { transform: scale(1.1); }
+
+/* CARDS */
+.card { background: var(--surface); border: 0.5px solid var(--border); border-radius: var(--radius); padding: 16px; margin: 0 16px 12px; }
+.card-sm { padding: 12px 14px; }
+
+/* LEARN VIEW */
+.learn-deck-row { display: flex; align-items: center; gap: 10px; padding: 0 16px 16px; flex-wrap: wrap; }
+.pill-select { background: var(--surface); border: 0.5px solid var(--border2); border-radius: 20px; color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 14px; padding: 8px 14px; flex: 1; min-width: 0; appearance: none; -webkit-appearance: none; }
+.btn-icon { width: 40px; height: 40px; border-radius: 50%; background: var(--surface); border: 0.5px solid var(--border2); color: var(--text2); font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+
+.progress-wrap { padding: 0 16px 16px; }
+.progress-track { height: 3px; background: var(--surface2); border-radius: 2px; }
+.progress-fill { height: 3px; background: var(--accent); border-radius: 2px; transition: width .4s cubic-bezier(.4,0,.2,1); }
+.progress-label { font-size: 12px; color: var(--text3); margin-top: 8px; }
+
+/* FLASHCARD FLIP */
+.flip-scene { padding: 0 16px 16px; perspective: 1200px; }
+.flip-card { position: relative; width: 100%; min-height: 260px; transform-style: preserve-3d; transition: transform .55s cubic-bezier(.4,0,.2,1); cursor: pointer; }
+.flip-card.flipped { transform: rotateY(180deg); }
+.flip-face { position: absolute; inset: 0; backface-visibility: hidden; border-radius: var(--radius); padding: 28px 24px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; min-height: 260px; }
+.flip-front { background: var(--surface); border: 0.5px solid var(--border2); }
+.flip-back { background: var(--surface2); border: 0.5px solid var(--border2); transform: rotateY(180deg); }
+.flip-label { font-size: 11px; letter-spacing: .1em; color: var(--text3); text-transform: uppercase; margin-bottom: 20px; }
+.flip-content { font-family: 'DM Sans', sans-serif; font-size: 17px; line-height: 1.45; color: var(--text); white-space: pre-line; text-align: left; width: 100%; }
+.flip-front .flip-content { font-family: 'DM Serif Display', serif; font-size: 24px; text-align: center; }
+.flip-hint { font-size: 12px; color: var(--text3); margin-top: 20px; }
+.flip-status { position: absolute; top: 14px; right: 14px; font-size: 11px; padding: 3px 10px; border-radius: 20px; font-weight: 500; }
+.s-new { background: rgba(107,168,255,0.15); color: var(--blue); }
+.s-learning { background: rgba(255,179,71,0.15); color: var(--amber); }
+.s-known { background: rgba(107,207,143,0.15); color: var(--green); }
+
+.rating-row { display: flex; gap: 10px; padding: 0 16px 16px; }
+.r-btn { flex: 1; padding: 14px 8px; border-radius: var(--radius-sm); border: 0.5px solid var(--border2); background: var(--surface); color: var(--text2); font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 500; cursor: pointer; transition: all .15s; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.r-btn .ico { font-size: 20px; }
+.r-btn.bad { border-color: rgba(255,107,107,0.3); color: var(--red); }
+.r-btn.bad:active { background: rgba(255,107,107,0.1); }
+.r-btn.ok { border-color: rgba(255,179,71,0.3); color: var(--amber); }
+.r-btn.ok:active { background: rgba(255,179,71,0.1); }
+.r-btn.good { border-color: rgba(107,207,143,0.3); color: var(--green); }
+.r-btn.good:active { background: rgba(107,207,143,0.1); }
+
+.empty-card { padding: 48px 24px; text-align: center; background: var(--surface); border: 0.5px dashed var(--border2); border-radius: var(--radius); margin: 0 16px; }
+.empty-ico { font-size: 40px; margin-bottom: 12px; }
+.empty-title { font-size: 16px; font-weight: 500; margin-bottom: 6px; }
+.empty-sub { font-size: 13px; color: var(--text2); }
+
+.done-wrap { padding: 32px 20px; text-align: center; }
+.done-ico { font-size: 56px; margin-bottom: 16px; }
+.done-title { font-family: 'DM Serif Display', serif; font-size: 28px; margin-bottom: 8px; }
+.done-sub { font-size: 14px; color: var(--text2); margin-bottom: 24px; }
+.done-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 24px; }
+.done-stat { background: var(--surface); border-radius: var(--radius-sm); padding: 14px; }
+.done-num { font-size: 28px; font-weight: 600; }
+.done-lbl { font-size: 12px; color: var(--text2); margin-top: 2px; }
+.btn-main { display: inline-flex; align-items: center; gap: 8px; padding: 14px 28px; background: var(--accent); color: #0f0f0f; border-radius: 24px; font-size: 15px; font-weight: 600; border: none; cursor: pointer; font-family: 'DM Sans', sans-serif; transition: transform .15s, opacity .15s; }
+.btn-main:active { transform: scale(0.97); opacity: .9; }
+
+/* MANAGE VIEW */
+.section-header { display: flex; align-items: center; justify-content: space-between; padding: 0 16px 12px; }
+.section-title { font-size: 13px; font-weight: 500; color: var(--text2); text-transform: uppercase; letter-spacing: .06em; }
+.btn-sm { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 20px; font-size: 13px; font-weight: 500; border: 0.5px solid var(--border2); background: var(--surface); color: var(--text); cursor: pointer; font-family: 'DM Sans', sans-serif; transition: background .15s; }
+.btn-sm:active { background: var(--surface2); }
+.btn-sm.accent { background: var(--accent); color: #0f0f0f; border-color: transparent; }
+
+.manage-controls { display: flex; gap: 8px; padding: 0 16px 16px; flex-wrap: wrap; }
+
+.fiszka-item { display: flex; align-items: center; gap: 12px; background: var(--surface); border: 0.5px solid var(--border); border-radius: var(--radius-sm); padding: 12px 14px; margin: 0 16px 8px; }
+.fiszka-texts { flex: 1; min-width: 0; }
+.fiszka-front { font-size: 15px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fiszka-back { font-size: 13px; color: var(--text2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
+.fiszka-del { width: 34px; height: 34px; border-radius: 8px; background: rgba(255,107,107,0.1); border: none; color: var(--red); font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+
+.deck-item { background: var(--surface); border: 0.5px solid var(--border); border-radius: var(--radius-sm); padding: 14px 16px; margin: 0 16px 8px; display: flex; align-items: center; gap: 12px; cursor: pointer; transition: background .15s; }
+.deck-item:active { background: var(--surface2); }
+.deck-item.selected { border-color: var(--accent); }
+.deck-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
+.deck-name { flex: 1; font-size: 15px; font-weight: 500; }
+.deck-count { font-size: 13px; color: var(--text2); }
+
+/* STATS VIEW */
+.stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 0 16px 16px; }
+.stat-tile { background: var(--surface); border: 0.5px solid var(--border); border-radius: var(--radius); padding: 16px; }
+.stat-num { font-family: 'DM Serif Display', serif; font-size: 36px; }
+.stat-lbl { font-size: 12px; color: var(--text2); margin-top: 4px; }
+.stat-accent { color: var(--accent); }
+.stat-green { color: var(--green); }
+.stat-amber { color: var(--amber); }
+
+.week-chart { padding: 0 16px 16px; }
+.bars { display: flex; align-items: flex-end; gap: 6px; height: 80px; }
+.bar-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; height: 100%; justify-content: flex-end; }
+.bar-fill { width: 100%; border-radius: 4px 4px 0 0; background: var(--accent); opacity: 0.7; min-height: 2px; transition: height .5s; }
+.bar-day { font-size: 10px; color: var(--text3); }
+.bar-today .bar-fill { opacity: 1; }
+
+.progress-ring-wrap { padding: 16px; display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.deck-progress-row { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 0.5px solid var(--border); }
+.deck-progress-row:last-child { border: none; }
+.dp-name { flex: 1; font-size: 14px; }
+.dp-bar { width: 80px; height: 6px; background: var(--surface2); border-radius: 3px; overflow: hidden; }
+.dp-fill { height: 6px; background: var(--green); border-radius: 3px; }
+.dp-pct { font-size: 13px; color: var(--text2); width: 32px; text-align: right; }
+
+/* MODAL */
+.overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 200; display: flex; flex-direction: column; justify-content: flex-end; opacity: 0; pointer-events: none; transition: opacity .25s; }
+.overlay.open { opacity: 1; pointer-events: all; }
+.sheet { background: var(--surface); border-radius: 24px 24px 0 0; padding: 24px 20px calc(24px + var(--safe-bottom)); transform: translateY(100%); transition: transform .3s cubic-bezier(.4,0,.2,1); max-height: 90vh; overflow-y: auto; }
+.overlay.open .sheet { transform: translateY(0); }
+.sheet-handle { width: 36px; height: 4px; background: var(--border2); border-radius: 2px; margin: 0 auto 20px; }
+.sheet-title { font-family: 'DM Serif Display', serif; font-size: 22px; margin-bottom: 20px; }
+.field { margin-bottom: 16px; }
+.field label { display: block; font-size: 12px; color: var(--text2); margin-bottom: 8px; text-transform: uppercase; letter-spacing: .06em; }
+.field input, .field textarea, .field select { width: 100%; background: var(--bg); border: 0.5px solid var(--border2); border-radius: var(--radius-sm); padding: 12px 14px; color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 15px; -webkit-appearance: none; }
+.field textarea { min-height: 80px; resize: vertical; }
+.field select { appearance: none; }
+.sheet-actions { display: flex; gap: 10px; margin-top: 8px; }
+.btn-cancel { flex: 1; padding: 14px; border-radius: var(--radius-sm); border: 0.5px solid var(--border2); background: none; color: var(--text2); font-family: 'DM Sans', sans-serif; font-size: 15px; cursor: pointer; }
+.btn-ok { flex: 2; padding: 14px; border-radius: var(--radius-sm); border: none; background: var(--accent); color: #0f0f0f; font-family: 'DM Sans', sans-serif; font-size: 15px; font-weight: 600; cursor: pointer; }
+
+/* TOAST */
+.toast { position: fixed; bottom: calc(var(--tab-h) + var(--safe-bottom) + 16px); left: 50%; transform: translateX(-50%) translateY(20px); background: var(--text); color: var(--bg); padding: 10px 20px; border-radius: 20px; font-size: 14px; font-weight: 500; opacity: 0; pointer-events: none; transition: all .3s; white-space: nowrap; z-index: 300; }
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* ANIMATIONS */
+@keyframes fadeUp { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:none; } }
+.view.active > * { animation: fadeUp .3s ease both; }
+.view.active > *:nth-child(2) { animation-delay: .05s; }
+.view.active > *:nth-child(3) { animation-delay: .1s; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="views">
+
+    <div class="view active" id="view-learn">
+      <div class="view-header">
+        <div class="view-title">Nauka</div>
+        <div class="view-sub" id="learn-sub">Wybierz zestaw i zacznij</div>
+      </div>
+      <div class="learn-deck-row">
+        <select class="pill-select" id="learn-deck" onchange="initSession()"></select>
+        <button class="btn-icon" onclick="initSession()" title="Przetasuj">🔀</button>
+      </div>
+      <div class="progress-wrap">
+        <div class="progress-track"><div class="progress-fill" id="prog-fill" style="width:0%"></div></div>
+        <div class="progress-label" id="prog-label">0 / 0</div>
+      </div>
+      <div id="learn-body"></div>
+    </div>
+
+    <div class="view" id="view-manage">
+      <div class="view-header">
+        <div class="view-title">Fiszki</div>
+      </div>
+      <div class="manage-controls">
+        <select class="pill-select" id="manage-deck" onchange="renderCards()" style="flex:1"></select>
+      </div>
+      <div class="section-header">
+        <span class="section-title">Zestaw</span>
+        <button class="btn-sm" onclick="openAddDeck()">＋ Nowy zestaw</button>
+      </div>
+      <div id="decks-list"></div>
+      <div class="section-header" style="margin-top:8px">
+        <span class="section-title" id="cards-section-title">Fiszki</span>
+        <div style="display:flex;gap:8px">
+          <button class="btn-sm accent" onclick="openAddCard()">＋ Dodaj</button>
+        </div>
+      </div>
+      <div id="cards-list"></div>
+    </div>
+
+    <div class="view" id="view-stats">
+      <div class="view-header">
+        <div class="view-title">Postępy</div>
+      </div>
+      <div class="stats-grid" id="stats-grid"></div>
+      <div class="card" style="margin:0 16px 12px">
+        <div style="font-size:13px;font-weight:500;color:var(--text2);margin-bottom:12px;text-transform:uppercase;letter-spacing:.06em">Ten tydzień</div>
+        <div class="bars" id="week-bars"></div>
+      </div>
+      <div class="card" style="margin:0 16px 12px" id="deck-progress"></div>
+    </div>
+
+    <div class="view" id="view-settings">
+      <div class="view-header">
+        <div class="view-title">Ustawienia</div>
+      </div>
+      <div class="settings-section">
+        <div style="margin-top:20px;padding-top:20px;border-top:0.5px solid var(--border)">
+          <div style="font-size:13px;font-weight:500;color:var(--text2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:12px">Dane</div>
+          <button class="btn-sm" style="width:100%;justify-content:center;margin-bottom:8px" onclick="exportData()">📤 Eksportuj dane</button>
+          <button class="btn-sm" style="width:100%;justify-content:center;color:var(--red);border-color:rgba(255,107,107,0.3)" onclick="clearAll()">🗑 Usuń wszystkie dane</button>
+        </div>
+        <div style="margin-top:24px;text-align:center;font-size:12px;color:var(--text3)">Fiszki PWA v1.2 · Działa offline</div>
+      </div>
+    </div>
+
+  </div>
+
+  <nav class="bottom-nav">
+    <button class="nav-item active" onclick="switchView('learn',this)">
+      <span class="nav-icon">🧠</span>
+      <span>Nauka</span>
+    </button>
+    <button class="nav-item" onclick="switchView('manage',this)">
+      <span class="nav-icon">🗂</span>
+      <span>Fiszki</span>
+    </button>
+    <button class="nav-item" onclick="switchView('stats',this)">
+      <span class="nav-icon">📊</span>
+      <span>Postępy</span>
+    </button>
+    <button class="nav-item" onclick="switchView('settings',this)">
+      <span class="nav-icon">⚙️</span>
+      <span>Ustawienia</span>
+    </button>
+  </nav>
+</div>
+
+<div class="overlay" id="overlay" onclick="maybeClose(event)">
+  <div class="sheet" id="sheet">
+    <div class="sheet-handle"></div>
+    <div id="sheet-body"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── STATE ──────────────────────────────────────────────
+let DB = {
+  decks: [],
+  cards: [],
+  stats: { totalReviews: 0, streak: 0, lastDate: null, weekData: [0,0,0,0,0,0,0] }
+};
+let session = { cards: [], index: 0, flipped: false, results: {good:0,ok:0,bad:0} };
+
+function load() {
+  // WYMUSZENIE NADPISANIA STAREJ PAMIĘCI (Zestawy Angielski/Historia) PRZY PIERWSZYM URUCHOMIENIU TEGO PLIKU
+  if (!localStorage.getItem('fiszki_pkm_v12_loaded')) {
+    localStorage.clear();
+    localStorage.setItem('fiszki_pkm_v12_loaded', 'true');
+    seedData();
+    return;
+  }
+
+  try {
+    let d = localStorage.getItem('fiszki_db');
+    if (d) DB = JSON.parse(d);
+    if (!DB.decks || DB.decks.length === 0 || !DB.cards || DB.cards.length === 0) seedData();
+  } catch(e) {
+    seedData();
+  }
+}
+
+function save() {
+  localStorage.setItem('fiszki_db', JSON.stringify(DB));
+}
+
+function seedData() {
+  DB.decks = [
+    { id:'pkm_pasowe', name:'PKM — Przekładnie pasowe' },
+    { id:'pkm_waly', name:'PKM — Wały, osie i wpusty' },
+    { id:'pkm_gwinty', name:'PKM — Połączenia gwintowe' },
+    { id:'pkm_kola', name:'PKM — Geometria kół zębatych' }
+  ];
+  DB.cards = [
+    // PRZEKŁADNIE PASOWE
+    { id:'p1', deckId:'pkm_pasowe', front:'Do czego służą przekładnie pasowe?', back:'Służą do przenoszenia mocy za pośrednictwem cięgna w postaci pasów.', status:'new', reviews:0 },
+    { id:'p2', deckId:'pkm_pasowe', front:'Z jakich głównych elementów składa się przekładnia pasowa?', back:'Z dwóch lub więcej kół o gładkich powierzchniach, opasanych cięgnem (pasem).', status:'new', reviews:0 },
+    { id:'p3', deckId:'pkm_pasowe', front:'Jak realizowane jest przenoszenie siły obwodowej między pasem a kołem?', back:'Pomiędzy pasem a kołem istnieje docisk, który poprzez tarcie pozwala na przeniesienie siły obwodowej.', status:'new', reviews:0 },
+    { id:'p4', deckId:'pkm_pasowe', front:'Wymień najważniejsze zalety przekładni pasowych (min. 5).', back:'- Płynność ruchu\n- Cichobieżność\n- Zdolność do łagodzenia zmian obciążenia\n- Tłumienie drgań\n- Tanie wykonanie\n- Praca bez smarowania\n- Możliwość pracy, gdy wały nie są równoległe\n- Mała wrażliwość na błędy rozstawienia osi wałów\n- Możliwość zmiany przełożenia (koła schodkowe).', status:'new', reviews:0 },
+    { id:'p5', deckId:'pkm_pasowe', front:'Wymień wady przekładni pasowych.', back:'- Duże wymiary gabarytowe\n- Duża siła działająca na łożyska\n- Niestałość przełożenia wynikająca z poślizgu pasa\n- Mała odporność na temperaturę i działanie chemii (smary itp.)\n- Mniejsza sprawność niż przekładnie łańcuchowe lub zębate.', status:'new', reviews:0 },
+    { id:'p6', deckId:'pkm_pasowe', front:'Gdzie pracują pasy klinowe i kiedy się je stosuje?', back:'Pracują w rowkach trapezowych kół. Stosuje się je, gdy osie wałów są blisko siebie, co pozwala uzyskać duże przełożenia (aż do 1:15).', status:'new', reviews:0 },
+    { id:'p7', deckId:'pkm_pasowe', front:'Dlaczego pas klinowy uzyskuje większe sprzężenie niż płaski?', back:'Pas klinowy ma trapezowy kształt i pracując w rowku koła uzyskuje znacznie większe (klinowe) sprzężenie cierne z powierzchnią boczną.', status:'new', reviews:0 },
+
+    // WAŁY, OSIE I WPUSTY
+    { id:'w1', deckId:'pkm_waly', front:'Podaj definicję wałów i osi maszynowych.', back:'Są to elementy maszyn, na których osadzone są inne elementy wykonujące ruch obrotowy (koła pasowe, zębatki, koła wirnikowe turbin). Realizują geometryczną oś obrotu i są osadzone w łożyskach.', status:'new', reviews:0 },
+    { id:'w2', deckId:'pkm_waly', front:'Jaka jest zasadnicza różnica w obciążeniu wału a osi?', back:'- Wał: przenosi głównie moment obrotowy (oraz giętny).\n- Oś: jest obciążona JEDYNIE momentem gnącym (nie przenosi momentu obrotowego).', status:'new', reviews:0 },
+    { id:'w3', deckId:'pkm_waly', front:'Jak dzielą się osie i jakim typom zginania podlegają?', back:'- Osie stałe: ulegają zginaniu jednostronnemu.\n- Osie ruchome: ulegają zginaniu obustronnemu (wahadłowemu).', status:'new', reviews:0 },
+    { id:'w4', deckId:'pkm_waly', front:'Jakie materiały stosuje się na wały i osie w zależności od obciążeń?', back:'- Niskoobciążone (muszą być sztywne): E295, S275JR\n- Wysokoobciążone: C35, C40, C45\n- Twarde czopy (odporne na ścieranie): stale stopowe chromowoniklowe do ulepszania cieplnego (azotowania).', status:'new', reviews:0 },
+    { id:'w5', deckId:'pkm_waly', front:'Jak wyznacza się średnicę d dla osi pełnej podpartej w dwóch miejscach?', back:'Z warunku na zginanie:\nsigma_g = Mg / Wx <= kg\nPrzyjmując Wx ca. 0.1 * d^3, otrzymujemy:\nd >= pierwiastek_3_stopnia( Mg / (0.1 * kg) )', status:'new', reviews:0 },
+    { id:'w6', deckId:'pkm_waly', front:'Podaj wzór na wskaźnik osiowy Wx oraz średnicę d dla osi drążonej.', back:'Przyjmując stosunek średnic beta = d0 / d (od 0.4 do 0.6):\nWx = 0.1 * (d^4 - d0^4)/d = 0.1 * d^3 * (1 - beta^4)\nŚrednica zewnętrzna:\nd >= pierwiastek_3_stopnia( Mg / (0.1 * (1 - beta^4) * kg) )', status:'new', reviews:0 },
+    { id:'w7', deckId:'pkm_waly', front:'Jak dzielą się drgania wału i od czego zależy częstotliwość drgań własnych?', back:'Dzielą się na własne i wymuszone (wynikające z działających sił zewnętrznych okresowo zmiennych). Częstotliwość własna zależy od rozmieszczenia mas na wale, sposobu podparcia oraz właściwości sprężystych.', status:'new', reviews:0 },
+    { id:'w8', deckId:'pkm_waly', front:'Podaj wzór na prędkość krytyczną wału i wyjaśnij wpływ strzałki ugięcia f.', back:'nk = 30 * pierwiastek(1 / f)  [obr/min]\nf to strzałka ugięcia [m] (maksymalne przemieszczenie prostopadłe do osi). Im większe ugięcie (f rośnie), tym niższa prędkość krytyczna – wał szybciej wpada w rezonans.', status:'new', reviews:0 },
+    { id:'w9', deckId:'pkm_waly', front:'Na jakie naprężenia oblicza się wpusty klinowe pryzmatyczne i dlaczego?', back:'Wpusty oblicza się z wału wyłącznie na naciski powierzchniowe (p). Siły ścinające całkowicie się zaniedbuje, ponieważ naciski boczne na powierzchniach styku są dominujące.', status:'new', reviews:0 },
+    { id:'w10', deckId:'pkm_waly', front:'Podaj pełny warunek wytrzymałościowy na docisk dla połączenia wpustowego.', back:'p = 2 * Ms / (d * z * s2 * l0) <= pdop\ngdzie Ms - moment obrotowy, d - średnica styku, z - liczba wpustów, s2 - głębokość rowka w wale, l0 - długość obliczeniowa części pryzmatycznej (l0 = l - b).', status:'new', reviews:0 },
+
+    // POŁĄCZENIA GWINTOWE
+    { id:'g1', deckId:'pkm_gwinty', front:'Czym są połączenia kształtowe i jak się dzielą?', back:'To sposób łączenia mający na celu ustalenie położenia lub przenoszenie obciążeń za pomocą własności geometrycznych elementów łączonych. Dzielą się na rozłączne bezpośrednie (wielokątne, wielowypustowe, śrubowe) i pośrednie (wpustowe, klinowe, kołkowe).', status:'new', reviews:0 },
+    { id:'g2', deckId:'pkm_gwinty', front:'Jaki jest główny cel stosowania połączenia wpustowego i jak się je pasuje?', back:'Służy do zabezpieczenia przed względnym obrotem wału oraz piasty. Nie ma tu docisku promieniowego ani centrowania piasty względem wału. Wpusty pasuje się ciasno na powierzchniach bocznych (wpust h6, rowek wału N9 lub P9, rowek piasty D10).', status:'new', reviews:0 },
+    { id:'g3', deckId:'pkm_gwinty', front:'Podaj uniwersalny wzór na siłę obwodową F potrzebną do obracania śruby (podnoszenie/opuszczanie).', back:'F = Q * tg(gamma +- ro\')\ngdzie gamma to kąt wzniosu linii śrubowej, a ro\' to zastępczy kąt tarcia na skosie flanki gwintu (tg ro\' = mi / cos alpha_r). Znak (+) dla podnoszenia, (-) dla opuszczania ciężaru.', status:'new', reviews:0 },
+    { id:'g4', deckId:'pkm_gwinty', front:'Z jakich dwóch elementów składa się całkowity moment skręcający Ms śruby przy dokręcaniu nakrętki?', back:'Ms = MT1 + MT2\nMT1 to moment tarcia w gwincie na średniej średnicy roboczej ds (MT1 = 0.5 * F * ds)\nMT2 to moment tarcia na pierścieniowej powierzchni oporowej nakrętki o przedmiot (MT2 = Q * mi * rsr).', status:'new', reviews:0 },
+    { id:'g5', deckId:'pkm_gwinty', front:'Podaj wzór na średni promień tarcia rsr powierzchni oporowej łba śruby/nakrętki.', back:'rsr = (Dw + Dz) / 4\ngdzie Dz to średnica zewnętrzna powierzchni oporowej, a Dw to średnica wewnętrzna powierzchni oporowej nakrętki.', status:'new', reviews:0 },
+
+    // GEOMETRIA KÓŁ ZĘBATYCH
+    { id:'z1', deckId:'pkm_kola', front:'Wymień podstawowe parametry geometryczne pojedynczego zęba koła zębatego.', back:'- Podziałka: t = e + s (gdzie e - szerokość wrębu, s - grubość zęba)\n- Wysokość stopy zęba\n- Wysokość głowy zęba (h0 glawy).', status:'new', reviews:0 },
+    { id:'z2', deckId:'pkm_kola', front:'Czym geometrycznie jest ewolwenta koła?', back:'Jest to linia toru dowolnego punktu związanego z prostą toczącą się po okręgu (zasadniczym) bez poślizgu. Stanowi koniec rozwijanej nitki odwiniętej z okręgu.', status:'new', reviews:0 },
+    { id:'z3', deckId:'pkm_kola', front:'Wymień najważniejsze zalety zarysu ewolwentowego w zazębieniach.', back:'- Jest zarysem sprężystym (zmiana odległości osi wałów nie wpływa na stałość przełożenia)\n- Łatwy do wykonania technologicznie\n- Siła międzyzębna zachowuje stały kierunek w czasie\n- Uniwersalność – jedno narzędzie może naciąć koła o różnej liczbie zębów przy zachowaniu tej samej geometrii.', status:'new', reviews:0 },
+    { id:'z4', deckId:'pkm_kola', front:'Jakie są zasadnicze wady stosowania kół zębatych o zarysie ewolwentowym?', back:'- Mała powierzchnia styku zębów (powoduje to duże miejscowe naciski)\n- Duże prędkości poślizgu przy wzębianiu i wyzębianiu, co przyspiesza zużycie głowy i stopy zębów.', status:'new', reviews:0 },
+    { id:'z5', deckId:'pkm_kola', front:'Zdefiniuj i opisz 3 rodzaje luzów występujących w zazębieniu kół.', back:'1) Luz wierzchołkowy (c): najmniejsza odległość między walcem stóp jednego koła a walcem wierzchołków koła współpracującego.\n2) Luz międzyzębny (jn): najkrótsza odległość między niepracującymi bokami zęba przy kontakcie roboczym boków przeciwnych.\n3) Luz obwodowy (jt): długość łuku tocznego, o którą można obrócić koło doprowadzając drugie boki zębów do kontaktu.', status:'new', reviews:0 }
+  ];
+  DB.stats.weekData = [0,0,0,0,0,0,0];
+  DB.stats.totalReviews = 0;
+  DB.stats.streak = 0;
+  save();
+}
+
+function deckCards(deckId) { return DB.cards.filter(c => c.deckId === deckId); }
+function shuffle(a) { let b=[...a]; for(let i=b.length-1;i>0;i--){let j=Math.floor(Math.random()*(i+1));[b[i],b[j]]=[b[j],b[i]];} return b; }
+function uid() { return '_'+Math.random().toString(36).slice(2)+Date.now().toString(36); }
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;'); }
+
+// ── NAVIGATION ─────────────────────────────────────────
+function switchView(name, btn) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+  document.getElementById('view-'+name).classList.add('active');
+  if (btn) btn.classList.add('active');
+  if (name==='learn') initSession();
+  if (name==='manage') { populateSelects(); renderDecks(); renderCards(); }
+  if (name==='stats') renderStats();
+  if (name==='settings') renderSettings();
+}
+
+// ── SELECTS ─────────────────────────────────────────────
+function populateSelects() {
+  ['learn-deck','manage-deck'].forEach(id => {
+    let el = document.getElementById(id);
+    if (!el) return;
+    let cur = el.value;
+    el.innerHTML = DB.decks.map(d => `<option value="${d.id}">${d.name} (${deckCards(d.id).length})</option>`).join('');
+    if (cur && DB.decks.find(d=>d.id===cur)) el.value = cur;
+  });
+}
+
+// ── LEARN ───────────────────────────────────────────────
+function initSession() {
+  populateSelects();
+  let deckId = document.getElementById('learn-deck')?.value;
+  let cards = deckCards(deckId);
+  session = { cards: shuffle(cards), index:0, flipped:false, results:{good:0,ok:0,bad:0} };
+  let sub = document.getElementById('learn-sub');
+  if (sub) sub.textContent = cards.length + ' fiszek w zestawie';
+  renderCard();
+}
+
+function renderCard() {
+  let body = document.getElementById('learn-body');
+  if (!body) return;
+  updateProgress();
+  let s = session;
+
+  if (s.cards.length === 0) {
+    body.innerHTML = `<div class="empty-card"><div class="empty-ico">🗂</div><div class="empty-title">Brak fiszek</div><div class="empty-sub">Wybierz inny zestaw lub dodaj własne fiszki</div></div>`;
+    return;
+  }
+
+  if (s.index >= s.cards.length) {
+    let total = s.results.good + s.results.ok + s.results.bad;
+    let pct = total ? Math.round(s.results.good/total*100) : 0;
+    body.innerHTML = `
+      <div class="done-wrap">
+        <div class="done-ico">🎉</div>
+        <div class="done-title">Gotowe!</div>
+        <div class="done-sub">${total} fiszek powtórzonych</div>
+        <div class="done-stats">
+          <div class="done-stat"><div class="done-num" style="color:var(--green)">${s.results.good}</div><div class="done-lbl">Umiałem</div></div>
+          <div class="done-stat"><div class="done-num" style="color:var(--amber)">${s.results.ok}</div><div class="done-lbl">Tak sobie</div></div>
+          <div class="done-stat"><div class="done-num" style="color:var(--red)">${s.results.bad}</div><div class="done-lbl">Nie pamiętałem</div></div>
+          <div class="done-stat"><div class="done-num" style="color:var(--accent)">${pct}%</div><div class="done-lbl">Skuteczność</div></div>
+        </div>
+        <button class="btn-main" onclick="initSession()">🔀 Powtórz jeszcze raz</button>
+      </div>`;
+    DB.stats.totalReviews += total;
+    let today = new Date().getDay();
+    let idx = today === 0 ? 6 : today-1;
+    DB.stats.weekData[idx] = (DB.stats.weekData[idx]||0) + total;
+    save();
+    return;
+  }
+
+  let card = s.cards[s.index];
+  let statusClass = {new:'s-new',learning:'s-learning',known:'s-known'}[card.status] || 's-new';
+  let statusLabel = {new:'Nowa',learning:'W nauce',known:'Znam'}[card.status] || 'Nowa';
+
+  body.innerHTML = `
+    <div class="flip-scene">
+      <div class="flip-card${s.flipped?' flipped':''}" id="flip-card" onclick="flipCard()">
+        <div class="flip-face flip-front">
+          <span class="flip-status ${statusClass}">${statusLabel}</span>
+          <div class="flip-label">Pytanie</div>
+          <div class="flip-content">${esc(card.front)}</div>
+          <div class="flip-hint">Dotknij aby odsłonić odpowiedź</div>
+        </div>
+        <div class="flip-face flip-back">
+          <div class="flip-label">Odpowiedź</div>
+          <div class="flip-content">${esc(card.back)}</div>
+        </div>
+      </div>
+    </div>
+    ${s.flipped ? `
+    <div class="rating-row">
+      <button class="r-btn bad" onclick="rateCard('bad')"><span class="ico">✗</span>Nie pamiętałem</button>
+      <button class="r-btn ok" onclick="rateCard('ok')"><span class="ico">〜</span>Tak sobie</button>
+      <button class="r-btn good" onclick="rateCard('good')"><span class="ico">✓</span>Umiałem</button>
+    </div>` : `<div style="height:72px"></div>`}`;
+}
+
+function updateProgress() {
+  let s = session;
+  let pct = s.cards.length ? Math.round(s.index/s.cards.length*100) : 0;
+  let fill = document.getElementById('prog-fill');
+  let label = document.getElementById('prog-label');
+  if (fill) fill.style.width = pct+'%';
+  if (label) label.textContent = `${s.index} / ${s.cards.length}`;
+}
+
+function flipCard() {
+  session.flipped = true;
+  renderCard();
+}
+
+// POPRAWIONA REAKCJA NA RATING - WYMUSZA NATYCHMIASTOWY ZAPIS I PRZEJŚCIE DALEJ
+function rateCard(rating) {
+  let s = session;
+  let card = s.cards[s.index];
+  s.results[rating]++;
+  let orig = DB.cards.find(c=>c.id===card.id);
+  if (orig) {
+    orig.reviews++;
+    if (rating==='good') orig.status='known';
+    else if (rating==='ok') orig.status='learning';
+    else { orig.status='new'; s.cards.push({...card}); }
+  }
+  s.index++;
+  s.flipped = false;
+  save();
+  renderCard();
+}
+
+// ── MANAGE ──────────────────────────────────────────────
+function renderDecks() {
+  let el = document.getElementById('decks-list');
+  if (!el) return;
+  let cur = document.getElementById('manage-deck')?.value;
+  el.innerHTML = DB.decks.map(d => `
+    <div class="deck-item${d.id===cur?' selected':''}" onclick="selectDeck('${d.id}')">
+      <div class="deck-dot"></div>
+      <div class="deck-name">${esc(d.name)}</div>
+      <div class="deck-count">${deckCards(d.id).length}</div>
+      <button style="background:none;border:none;color:var(--red);font-size:16px;cursor:pointer;padding:4px" onclick="deleteDeck(event,'${d.id}')">🗑</button>
+    </div>`).join('') || `<div style="padding:0 16px;font-size:14px;color:var(--text2)">Brak zestawów. Utwórz pierwszy!</div>`;
+}
+
+function selectDeck(id) {
+  let sel = document.getElementById('manage-deck');
+  if (sel) { sel.value = id; }
+  renderDecks();
+  renderCards();
+}
+
+function renderCards() {
+  let deckId = document.getElementById('manage-deck')?.value;
+  let el = document.getElementById('cards-list');
+  let title = document.getElementById('cards-section-title');
+  if (!el) return;
+  let cards = deckCards(deckId);
+  if (title) title.textContent = `Fiszki (${cards.length})`;
+  el.innerHTML = cards.map(c => {
+    let badge = {new:'s-new',learning:'s-learning',known:'s-known'}[c.status];
+    let lbl = {new:'Nowa',learning:'W nauce',known:'Znam'}[c.status];
+    return `<div class="fiszka-item">
+      <div class="fiszka-texts">
+        <div class="fiszka-front">${esc(c.front)}</div>
+        <div class="fiszka-back">${esc(c.back)}</div>
+      </div>
+      <span class="flip-status ${badge}" style="position:static;margin-left:auto">${lbl}</span>
+      <button class="fiszka-del" onclick="deleteCard('${c.id}')">🗑</button>
+    </div>`;
+  }).join('') || `<div class="empty-card" style="margin:0 16px"><div class="empty-ico">🗭</div><div class="empty-title">Brak fiszek</div><div class="empty-sub">Dodaj pierwszą fiszkę w tym zestawie</div></div>`;
+}
+
+function deleteCard(id) {
+  DB.cards = DB.cards.filter(c=>c.id!==id);
+  save(); populateSelects(); renderCards();
+  toast('Fiszka usunięta');
+}
+
+function deleteDeck(e, id) {
+  e.stopPropagation();
+  if (!confirm('Usunąć zestaw wraz ze wszystkimi fiszkami?')) return;
+  DB.decks = DB.decks.filter(d=>d.id!==id);
+  DB.cards = DB.cards.filter(c=>c.deckId!==id);
+  save(); populateSelects(); renderDecks(); renderCards();
+  toast('Zestaw usunięty');
+}
+
+// ── MODALS ──────────────────────────────────────────────
+function openSheet(html) {
+  document.getElementById('sheet-body').innerHTML = html;
+  document.getElementById('overlay').classList.add('open');
+}
+function closeSheet() {
+  document.getElementById('overlay').classList.remove('open');
+}
+function maybeClose(e) {
+  if (e.target === document.getElementById('overlay')) closeSheet();
+}
+
+function openAddDeck() {
+  openSheet(`
+    <div class="sheet-title">Nowy zestaw</div>
+    <div class="field"><label>Nazwa zestawu</label><input id="inp-deck" type="text" placeholder="np. PKM - Przekładnie cięgnowe..."></div>
+    <div class="sheet-actions">
+      <button class="btn-cancel" onclick="closeSheet()">Anuluj</button>
+      <button class="btn-ok" onclick="addDeck()">Utwórz</button>
+    </div>`);
+  setTimeout(()=>document.getElementById('inp-deck')?.focus(),350);
+}
+
+function addDeck() {
+  let name = document.getElementById('inp-deck')?.value.trim();
+  if (!name) return;
+  let id = uid();
+  DB.decks.push({ id, name });
+  save(); closeSheet(); populateSelects();
+  document.getElementById('manage-deck').value = id;
+  renderDecks(); renderCards();
+  toast('Zestaw utworzony');
+}
+
+function openAddCard() {
+  let deckId = document.getElementById('manage-deck')?.value;
+  openSheet(`
+    <div class="sheet-title">Dodaj fiszkę</div>
+    <div class="field"><label>Zestaw</label>
+      <select id="inp-card-deck">${DB.decks.map(d=>`<option value="${d.id}"${d.id===deckId?' selected':''}>${esc(d.name)}</option>`).join('')}</select>
+    </div>
+    <div class="field"><label>Przód (pytanie)</label><textarea id="inp-front" placeholder="Wpisz pytanie..."></textarea></div>
+    <div class="field"><label>Tył (odpowiedź)</label><textarea id="inp-back" placeholder="Wpisz odpowiedź..."></textarea></div>
+    <div class="sheet-actions">
+      <button class="btn-cancel" onclick="closeSheet()">Anuluj</button>
+      <button class="btn-ok" onclick="addCard()">Dodaj</button>
+    </div>`);
+}
+
+function addCard() {
+  let front = document.getElementById('inp-front')?.value.trim();
+  let back = document.getElementById('inp-back')?.value.trim();
+  let deckId = document.getElementById('inp-card-deck')?.value;
+  if (!front||!back) { toast('Uzupełnij przód i tył'); return; }
+  DB.cards.push({ id:uid(), deckId, front, back, status:'new', reviews:0 });
+  save(); closeSheet(); populateSelects(); renderCards();
+  toast('Fiszka dodana ✓');
+}
+
+// ── STATS ───────────────────────────────────────────────
+function renderStats() {
+  let total = DB.cards.length;
+  let known = DB.cards.filter(c=>c.status==='known').length;
+  let learning = DB.cards.filter(c=>c.status==='learning').length;
+  let pct = total ? Math.round(known/total*100) : 0;
+
+  let sg = document.getElementById('stats-grid');
+  if (sg) sg.innerHTML = `
+    <div class="stat-tile"><div class="stat-num stat-accent">${total}</div><div class="stat-lbl">Wszystkich fiszek</div></div>
+    <div class="stat-tile"><div class="stat-num" style="color:var(--green)">${known}</div><div class="stat-lbl">Znam</div></div>
+    <div class="stat-tile"><div class="stat-num" style="color:var(--amber)">${learning}</div><div class="stat-lbl">W nauce</div></div>
+    <div class="stat-tile"><div class="stat-num">${DB.stats.streak}</div><div class="stat-lbl">Dni z rzędu 🔥</div></div>
+    <div class="stat-tile"><div class="stat-num">${DB.stats.totalReviews}</div><div class="stat-lbl">Powtórzeń łącznie</div></div>
+    <div class="stat-tile"><div class="stat-num stat-accent">${pct}%</div><div class="stat-lbl">Opanowano</div></div>`;
+
+  let days = ['Pon','Wt','Śr','Czw','Pt','Sob','Nd'];
+  let today = new Date().getDay();
+  let todayIdx = today===0?6:today-1;
+  let max = Math.max(...DB.stats.weekData, 1);
+  let wb = document.getElementById('week-bars');
+  if (wb) wb.innerHTML = DB.stats.weekData.map((v,i)=>`
+    <div class="bar-col${i===todayIdx?' bar-today':''}">
+      <div class="bar-fill" style="height:${Math.round(v/max*100)}%"></div>
+      <div class="bar-day">${days[i]}</div>
+    </div>`).join('');
+
+  let dp = document.getElementById('deck-progress');
+  if (dp) dp.innerHTML = `<div style="font-size:13px;font-weight:500;color:var(--text2);margin-bottom:12px;text-transform:uppercase;letter-spacing:.06em">Postępy w zestawach</div>` +
+    DB.decks.map(d=>{
+      let cards = deckCards(d.id);
+      let k = cards.filter(c=>c.status==='known').length;
+      let pct = cards.length ? Math.round(k/cards.length*100) : 0;
+      return `<div class="deck-progress-row">
+        <div class="dp-name">${esc(d.name)}</div>
+        <div class="dp-bar"><div class="dp-fill" style="width:${pct}%"></div></div>
+        <div class="dp-pct">${pct}%</div>
+      </div>`;
+    }).join('') || '<div style="font-size:14px;color:var(--text2)">Brak zestawów</div>';
+}
+
+// ── SETTINGS ────────────────────────────────────────────
+function renderSettings() {}
+
+function exportData() {
+  let blob = new Blob([JSON.stringify(DB,null,2)], {type:'application/json'});
+  let url = URL.createObjectURL(blob);
+  let a = document.createElement('a');
+  a.href=url; a.download='pkm-fiszki-backup.json'; a.click();
+  URL.revokeObjectURL(url);
+  toast('Dane wyeksportowane');
+}
+
+// BEZPIECZNE CZYSZCZENIE Z PRZEŁADOWANIEM STRONY, ABY WYMUSIĆ NOWY SEED
+function clearAll() {
+  if (!confirm('Usunąć wszystkie dane i przywrócić domyślne fiszki PKM?')) return;
+  localStorage.clear();
+  location.reload();
+}
+
+// ── TOAST ───────────────────────────────────────────────
+function toast(msg) {
+  let el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(()=>el.classList.remove('show'), 2200);
+}
+
+// ── INIT ────────────────────────────────────────────────
+load();
+populateSelects();
+initSession();
+</script>
+</body>
+</html>
